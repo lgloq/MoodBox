@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F7FA">
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottomNav" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:background="#FFFFFF"
+        app:elevation="16dp"
+        app:itemIconTint="@color/purple_500"
+        app:itemTextColor="@color/purple_500"
+        app:menu="@menu/bottom_nav_menu" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabHistory"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="40dp"
+        android:layout_marginEnd="20dp"
+        android:src="@drawable/ic_book"
+        app:backgroundTint="#FFFFFF"
+        app:tint="#6200EE"
+        android:contentDescription="查看收藏" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabReport"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="40dp"
+        android:layout_marginStart="20dp"
+        android:src="@drawable/ic_insert_chart"
+        app:backgroundTint="#FFFFFF"
+        app:tint="#6200EE"
+        android:contentDescription="心情报表" />
+
+</RelativeLayout>

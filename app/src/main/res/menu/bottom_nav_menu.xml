@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_joke"
+        android:icon="@drawable/ic_joke"
+        android:title="笑话" />
+    <item
+        android:id="@+id/nav_quote"
+        android:icon="@drawable/ic_soup"
+        android:title="鸡汤" />
+    <item
+        android:id="@+id/nav_poetry"
+        android:icon="@drawable/ic_book"
+        android:title="古诗" />
+</menu>

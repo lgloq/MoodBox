@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="8dp"
+    android:clipToPadding="false">
+
+    <TextView
+        android:id="@+id/tvFavTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="8dp"
+        android:background="#E0E0E0"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:text="12:30"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:backgroundTint="#CECECE"
+        android:includeFontPadding="false"
+        app:layout_constraintBottom_toTopOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
+        app:cardBackgroundColor="#FFFFFF"
+        android:foreground="?attr/selectableItemBackground">
+
+        <TextView
+            android:id="@+id/tvFavContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="20dp"
+            android:text="收藏的内容..."
+            android:textColor="#333333"
+            android:textSize="16sp"
+            android:lineSpacingExtra="6dp" />
+
+    </androidx.cardview.widget.CardView>
+
+</LinearLayout>
