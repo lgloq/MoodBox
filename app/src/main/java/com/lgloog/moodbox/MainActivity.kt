@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
@@ -60,6 +61,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        //默认跟随系统
+        //AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -92,15 +95,15 @@ class MainActivity : AppCompatActivity() {
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.nav_joke -> {
-                    viewPager.setCurrentItem(0, false)
+                    viewPager.setCurrentItem(0, true)
                     true
                 }
                 R.id.nav_soup -> {
-                    viewPager.setCurrentItem(1, false)
+                    viewPager.setCurrentItem(1, true)
                     true
                 }
                 R.id.nav_poetry -> {
-                    viewPager.setCurrentItem(2, false)
+                    viewPager.setCurrentItem(2, true)
                     true
                 }
                 // 【修改】如果是“测心情”，使用 launcher 启动，以便接收返回值
