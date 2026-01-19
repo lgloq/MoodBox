@@ -60,4 +60,16 @@ dependencies {
     implementation("androidx.room:room-ktx:$room_version")
 
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // ================== 【新增】端侧 AI 情感计算模块 ==================
+    // 1. CameraX：Google 官方推荐的相机库 (生命周期感知，代码极简)
+    val cameraxVersion = "1.3.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+
+    // 2. ML Kit Face Detection：谷歌的人脸检测模型
+    // 使用 play-services 版本，依赖手机的 Google 服务，体积小，检测快
+    implementation("com.google.android.gms:play-services-mlkit-face-detection:17.1.0")
 }

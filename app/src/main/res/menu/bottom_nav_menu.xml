@@ -1,15 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+
     <item
         android:id="@+id/nav_joke"
-        android:icon="@drawable/ic_joke"
+        android:icon="@drawable/ic_mood_joke"
         android:title="笑话" />
+
     <item
-        android:id="@+id/nav_quote"
+        android:id="@+id/nav_soup"
         android:icon="@drawable/ic_soup"
         android:title="鸡汤" />
+
     <item
         android:id="@+id/nav_poetry"
         android:icon="@drawable/ic_book"
         android:title="古诗" />
+
+    <item
+        android:id="@+id/nav_face_detect"
+        android:icon="@drawable/ic_face_detect"
+        android:title="测心情" />
+
 </menu>
