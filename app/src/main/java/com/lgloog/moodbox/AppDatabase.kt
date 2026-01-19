@@ -18,7 +18,7 @@ interface FavDao {
     @Insert
     fun insert(record: FavRecord)
 
-    @Query("SELECT * FROM fav_table")
+    @Query("SELECT * FROM fav_table ORDER BY time DESC")
     fun getAll(): List<FavRecord>
 
     @Query("SELECT * FROM fav_table WHERE content = :content LIMIT 1")
@@ -26,6 +26,10 @@ interface FavDao {
 
     @Delete
     fun delete(record: FavRecord)
+
+    // 【新增】根据时间范围查询 (start 和 end 是毫秒时间戳)
+    @Query("SELECT * FROM fav_table WHERE time BETWEEN :start AND :end ORDER BY time DESC")
+    fun getFavsByDateRange(start: Long, end: Long): List<FavRecord>
 }
 
 // 3. 数据库入口

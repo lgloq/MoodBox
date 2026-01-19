@@ -1,43 +1,161 @@
 package com.lgloog.moodbox
 
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import java.io.OutputStreamWriter
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.concurrent.thread
 
 class FavActivity : AppCompatActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_fav) // 确保你的布局文件叫 activity_fav.xml
 
-        val recyclerView = findViewById<RecyclerView>(R.id.rvFav)
-        recyclerView.layoutManager = LinearLayoutManager(this)
+    private lateinit var db: AppDatabase
+    private lateinit var adapter: FavAdapter
 
-        val db = AppDatabase.getDatabase(this)
-        // 获取所有数据并转为 MutableList，方便删除
-        val allFavs = db.favDao().getAll().toMutableList()
+    // 【新增】用于临时存储生成的 CSV 文本内容
+    private var tempExportContent: String = ""
 
-        // 初始化适配器，传入数据和长按删除逻辑
-        val adapter = FavAdapter(allFavs) { record, position ->
-            // 弹出删除确认框
-            showDeleteDialog(record, position, db, recyclerView.adapter as FavAdapter)
+    // 【新增】注册文件保存回调 (SAF框架)
+    // 当用户在系统文件管理器中点击“保存”后，系统会回调这里
+    private val saveFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) {
+            try {
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    // 写入 BOM 头 (\uFEFF)，防止 Excel 打开中文乱码
+                    val writer = OutputStreamWriter(outputStream, "UTF-8")
+                    writer.write("\uFEFF")
+                    writer.write(tempExportContent)
+                    writer.flush()
+                }
+                Toast.makeText(this, "导出成功！", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(this, "导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
-
-        recyclerView.adapter = adapter
     }
 
-    private fun showDeleteDialog(record: FavRecord, position: Int, db: AppDatabase, adapter: FavAdapter) {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_fav)
+
+        db = AppDatabase.getDatabase(this)
+
+        // 1. 初始化 RecyclerView (注意 ID 要和 XML 对应，这里用 recyclerViewFav)
+        val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFav)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+
+        // 获取数据 (建议放在子线程，这里为了保持您原有的简单结构，暂时在主线程运行)
+        // 注意：如果你在 AppDatabase 里没开 allowMainThreadQueries，这里会崩。
+        // 如果崩了，请告诉我，我帮你改成子线程加载。
+        val allFavs = db.favDao().getAll().toMutableList()
+
+        // 初始化适配器，传入数据和长按删除逻辑 (保留您原有的逻辑)
+        adapter = FavAdapter(allFavs) { record, position ->
+            showDeleteDialog(record, position)
+        }
+        recyclerView.adapter = adapter
+
+        // 2. 【新增】绑定导出按钮事件
+        val fabExport = findViewById<FloatingActionButton>(R.id.fabExport)
+        fabExport.setOnClickListener {
+            showDateRangePicker()
+        }
+    }
+
+    // 【原有】删除确认弹窗
+    private fun showDeleteDialog(record: FavRecord, position: Int) {
         AlertDialog.Builder(this)
             .setTitle("删除收藏")
             .setMessage("确定要删除这条内容吗？")
             .setPositiveButton("删除") { _, _ ->
-                // 1. 删数据库
-                db.favDao().delete(record)
-                // 2. 删界面
-                adapter.removeItem(position)
+                // 使用线程操作数据库，防止卡顿
+                thread {
+                    db.favDao().delete(record)
+                    runOnUiThread {
+                        adapter.removeItem(position)
+                        Toast.makeText(this, "已删除", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    // 【新增】显示日期范围选择器
+    private fun showDateRangePicker() {
+        val datePicker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("选择导出日期范围")
+            .setSelection(
+                androidx.core.util.Pair(
+                    MaterialDatePicker.thisMonthInUtcMilliseconds(),
+                    MaterialDatePicker.todayInUtcMilliseconds()
+                )
+            )
+            .setTheme(com.google.android.material.R.style.ThemeOverlay_MaterialComponents_MaterialCalendar)
+            .build()
+
+        datePicker.addOnPositiveButtonClickListener { selection ->
+            val startDate = selection.first
+            val endDate = selection.second
+
+            if (startDate != null && endDate != null) {
+                // 细节：DatePicker 返回的是 UTC 0点
+                // 为了包含结束当天的数据，把结束时间设为当天的 23:59:59 (即 +24小时 -1毫秒)
+                val adjustedEndDate = endDate + 86400000L - 1
+                prepareExportData(startDate, adjustedEndDate)
+            }
+        }
+        datePicker.show(supportFragmentManager, "EXPORT_DATE")
+    }
+
+    // 【新增】查询数据并生成 CSV 内容
+    private fun prepareExportData(start: Long, end: Long) {
+        thread {
+            // 1. 查库
+            val list = db.favDao().getFavsByDateRange(start, end)
+
+            if (list.isEmpty()) {
+                runOnUiThread { Toast.makeText(this, "该时间段内没有收藏记录", Toast.LENGTH_SHORT).show() }
+                return@thread
+            }
+
+            // 2. 拼接 CSV 字符串
+            val sb = StringBuilder()
+            sb.append("ID,类型,内容,收藏时间\n") // 表头
+
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+            for (record in list) {
+                // 处理 CSV 转义：如果有双引号，替换成两个双引号，并用引号包裹内容
+                val safeContent = record.content.replace("\"", "\"\"")
+                val timeStr = dateFormat.format(Date(record.time))
+
+                // 类型转中文
+                val typeName = when (record.type) {
+                    "joke" -> "笑话"
+                    "quote" -> "鸡汤"
+                    "poetry" -> "古诗"
+                    else -> "其他"
+                }
+
+                sb.append("${record.id},${typeName},\"${safeContent}\",${timeStr}\n")
+            }
+
+            tempExportContent = sb.toString()
+
+            // 3. 调起系统文件保存框
+            runOnUiThread {
+                val fileName = "MoodBox_Export_${System.currentTimeMillis()}.csv"
+                saveFileLauncher.launch(fileName)
+            }
+        }
     }
 }

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA">
-
+    android:background="@color/page_bg">
     <TextView
         android:id="@+id/tvTitle"
         android:layout_width="match_parent"
@@ -11,18 +11,31 @@
         android:text="我的收藏"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="#333333"
+        android:textColor="@color/chart_text"
         android:gravity="center"
         android:padding="16dp"
-        android:background="#FFFFFF"
+        android:background="@color/chart_card_bg"
         android:elevation="4dp"/>
-
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvFav"
+        android:id="@+id/recyclerViewFav"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/tvTitle"
         android:padding="8dp"
         android:clipToPadding="false"/>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabExport"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="48dp"
+        android:src="@android:drawable/ic_menu_save"
+        app:tint="#FFFFFF"
+        app:backgroundTint="#6200EE"
+        app:elevation="8dp"
+        android:contentDescription="导出数据" />
 
 </RelativeLayout>
