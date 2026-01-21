@@ -20,9 +20,9 @@ import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.Random
+import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
 import kotlin.concurrent.thread
 
@@ -38,32 +38,29 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var ttsStatus = 0
     private var currentText = "点击刷新获取内容..."
+    private var currentTitle: String = ""
 
     // ================== AI 配置 ==================
     private val AI_API_KEY = "sk-iuzxavusdirvnnpualubkcsjtssrgkjfnotgttwjsyageiyo"
     private val AI_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
 
-    // 模型定义
-    private val AI_MODEL_QWEN = "Qwen/Qwen2.5-7B-Instruct" // 写段子用
-    private val AI_MODEL_GLM = "THUDM/glm-4-9b-chat"      // 写古诗用 (适合JSON指令)
+    private val AI_MODEL_QWEN = "Qwen/Qwen2.5-7B-Instruct"
+    private val AI_MODEL_GLM = "THUDM/glm-4-9b-chat"
 
     // ================== 本地兜底数据 ==================
     private val localJokes = listOf(
         "今天解决不了的事，别着急，因为明天也解决不了。",
         "失败是成功之母，但成功六亲不认。",
-        "我的钱包就像洋葱，每次打开都让我泪流满面。",
-        "单身狗别怕，以后单身的日子还长着呢。"
+        "我的钱包就像洋葱，每次打开都让我泪流满面。"
     )
     private val localSoups = listOf(
         "生活原本沉闷，但跑起来就有风。",
         "星光不问赶路人，时光不负有心人。",
-        "知足且上进，温柔而坚定。",
-        "万物皆有裂痕，那是光照进来的地方。"
+        "知足且上进，温柔而坚定。"
     )
     private val localPoetry = listOf(
         "《行路难》\n[唐] 李白\n\n长风破浪会有时，\n直挂云帆济沧海。",
-        "《定风波》\n[宋] 苏轼\n\n竹杖芒鞋轻胜马，谁怕？\n一蓑烟雨任平生。",
-        "《望岳》\n[唐] 杜甫\n\n会当凌绝顶，\n一览众山小。"
+        "《定风波》\n[宋] 苏轼\n\n竹杖芒鞋轻胜马，谁怕？\n一蓑烟雨任平生。"
     )
 
     companion object {
@@ -130,13 +127,17 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
             thread {
                 val db = AppDatabase.getDatabase(requireContext())
                 val dao = db.favDao()
-                val existing = dao.findByContent(currentText)
+                val existing = if (moodType == "poetry" && currentTitle.isNotEmpty()) {
+                    dao.findByTitle(currentTitle)
+                } else {
+                    dao.findByContent(currentText)
+                }
+
                 if (existing != null) {
                     dao.delete(existing)
                     activity?.runOnUiThread {
                         Toast.makeText(requireContext(), "已取消收藏", Toast.LENGTH_SHORT).show()
-                        btnFav.setImageResource(android.R.drawable.star_off)
-                        btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
+                        updateFavIcon(false)
                     }
                 } else {
                     val newRecord = FavRecord(
@@ -147,8 +148,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
                     dao.insert(newRecord)
                     activity?.runOnUiThread {
                         Toast.makeText(requireContext(), "已加入收藏", Toast.LENGTH_SHORT).show()
-                        btnFav.setImageResource(android.R.drawable.star_on)
-                        btnFav.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
+                        updateFavIcon(true)
                     }
                 }
             }
@@ -175,32 +175,36 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
         if (currentText.isEmpty() || currentText.contains("加载中") || currentText.contains("刷新")) return
         thread {
             val db = AppDatabase.getDatabase(requireContext())
-            val existing = db.favDao().findByContent(currentText)
-            activity?.runOnUiThread {
-                if (existing != null) {
-                    btnFav.setImageResource(android.R.drawable.star_on)
-                    btnFav.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
-                } else {
-                    btnFav.setImageResource(android.R.drawable.star_off)
-                    btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
-                }
+            val dao = db.favDao()
+            val existing = if (moodType == "poetry" && currentTitle.isNotEmpty()) {
+                dao.findByTitle(currentTitle)
+            } else {
+                dao.findByContent(currentText)
             }
+            activity?.runOnUiThread { updateFavIcon(existing != null) }
         }
     }
 
-    // ================== 网络请求逻辑 ==================
+    private fun updateFavIcon(isFav: Boolean) {
+        if (isFav) {
+            btnFav.setImageResource(android.R.drawable.star_on)
+            btnFav.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
+        } else {
+            btnFav.setImageResource(android.R.drawable.star_off)
+            btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
+        }
+    }
 
     private fun loadDataFromNetwork() {
         val loadingText = when(moodType) {
-            "joke" -> "Qwen 正在创作段子..."
-            "poetry" -> "GLM 正在寻觅古诗..."
+            "joke" -> "AI 正在创作段子..."
+            "poetry" -> "AI 正在寻觅古诗..."
             else -> "正在连接..."
         }
         tvContent.text = loadingText
-
-        btnFav.setImageResource(android.R.drawable.star_off)
-        btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
+        updateFavIcon(false)
         btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
+        currentTitle = ""
 
         thread {
             try {
@@ -213,13 +217,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
                 if (content.isBlank()) throw Exception("返回内容为空")
 
                 activity?.runOnUiThread {
-                    // 字体控制: 古诗略小(18)以防换行，其他略大(22)
-                    if (moodType == "poetry") {
-                        tvContent.textSize = 18f
-                    } else {
-                        tvContent.textSize = 22f
-                    }
-
+                    if (moodType == "poetry") tvContent.textSize = 18f else tvContent.textSize = 22f
                     currentText = content
                     tvContent.text = currentText
                     checkFavStatus()
@@ -232,14 +230,22 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
         }
     }
 
-    // 【AI 请求核心方法】 - 强制 JSON 模式
     private fun requestAiContent(type: String): String {
-        // 1. 构造 System Prompt (强制 JSON)
+        // 1. 构造 System Prompt (加入随机性)
         val systemPrompt = if (type == "poetry") {
+            // 【核心修改】定义一个丰富的诗人库，强制 AI 每次换人
+            val poets = listOf(
+                "李白", "杜甫", "苏轼", "王维", "白居易", "李清照", "辛弃疾", "纳兰性德",
+                "李商隐", "杜牧", "陆游", "孟浩然", "刘禹锡", "柳宗元", "欧阳修", "陶渊明",
+                "王勃", "岑参", "王昌龄", "杨万里"
+            )
+            val randomPoet = poets.random() // 每次随机抽一个
+
             """
-            你是一个古诗词API。请返回纯JSON格式数据，不要包含任何Markdown标记。
-            随机推荐一首中国古代经典诗词（唐诗或宋词），避开《静夜思》等基础诗词。
-            JSON格式要求：
+            你是一个严谨的国学数据库。仅返回JSON数据。
+            请推荐一首【$randomPoet】的代表作，或者风格相似的经典古诗。
+            
+            JSON格式：
             {
               "title": "标题",
               "author": "[朝代] 作者",
@@ -248,22 +254,16 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
                 "第三句，第四句。"
               ]
             }
-            注意：
-            1. lines数组中，每一项必须是完整的一联（包含逗号和句号），绝对不要把一句拆成两行。
-            2. 杜绝出现代码、英文或乱码。
+            
+            严格要求：
+            1. 绝对严禁重复诗句！lines数组里每一行必须是独一无二的。
+            2. lines数组中，每一项必须包含完整的标点符号（逗号和句号）。
+            3. 严禁出现 setVisible, println 等代码！严禁出现英文！
             """.trimIndent()
         } else {
-            // 段子也用 JSON 保持稳定
             """
-            你是一个幽默大师。请返回纯JSON格式数据。
-            主题：生活/恋爱/搞钱。
-            JSON格式要求：
-            {
-              "qa_list": [
-                "甲：[天真的话]",
-                "乙：[神回复]"
-              ]
-            }
+            你是一个幽默大师。仅返回JSON数据。
+            JSON格式：{ "qa_list": ["甲：...", "乙：..."] }
             """.trimIndent()
         }
 
@@ -275,17 +275,16 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
                 put(JSONObject().apply { put("role", "system"); put("content", systemPrompt) })
                 put(JSONObject().apply { put("role", "user"); put("content", "开始") })
             })
-            // 【关键】降低温度，防止出现 setVisible 这种幻觉
-            put("temperature", 0.6)
-            put("max_tokens", 450)
+            put("temperature", 0.3) // 保持低温，防止乱码
+            put("max_tokens", 2048)
             put("stream", false)
         }
 
         val url = URL(AI_API_URL)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
-        connection.connectTimeout = 12000
-        connection.readTimeout = 12000
+        connection.connectTimeout = 15000
+        connection.readTimeout = 15000
         connection.setRequestProperty("Authorization", "Bearer $AI_API_KEY")
         connection.setRequestProperty("Content-Type", "application/json")
         connection.doOutput = true
@@ -300,42 +299,50 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
             val rawContent = JSONObject(responseText).getJSONArray("choices")
                 .getJSONObject(0).getJSONObject("message").getString("content").trim()
 
-            // 【清洗数据】去掉可能存在的 ```json ``` 包裹
             val jsonStr = rawContent.replace("```json", "").replace("```", "").trim()
 
-            // 【解析 JSON 并手动排版】
             return try {
                 val obj = JSONObject(jsonStr)
                 if (type == "poetry") {
                     val title = obj.optString("title", "无题")
+                    currentTitle = title
                     val author = obj.optString("author", "佚名")
                     val lines = obj.optJSONArray("lines")
+
                     val sb = StringBuilder()
                     sb.append("《$title》\n$author\n\n")
 
+                    // 手动拼接 + 强制排版 + 清洗
+                    val fullPoem = StringBuilder()
                     if (lines != null) {
                         for (i in 0 until lines.length()) {
-                            sb.append(lines.getString(i)).append("\n")
+                            fullPoem.append(lines.getString(i))
                         }
                     }
+
+                    var rawPoem = fullPoem.toString()
+                    rawPoem = rawPoem.replace(Regex("[a-zA-Z{}_=]"), "") // 再次清洗代码残留
+
+                    val formattedPoem = rawPoem
+                        .replace("。", "。\n")
+                        .replace("！", "！\n")
+                        .replace("？", "？\n")
+                        .replace("\n\n", "\n")
+
+                    sb.append(formattedPoem)
                     sb.toString().trim()
                 } else {
-                    // 段子解析
                     val list = obj.optJSONArray("qa_list")
                     val sb = StringBuilder()
                     if (list != null) {
                         for (i in 0 until list.length()) {
                             sb.append(list.getString(i)).append("\n")
                         }
-                    } else {
-                        // 兼容 fallback
-                        obj.toString()
-                    }
+                    } else { obj.toString() }
                     sb.toString().trim()
                 }
             } catch (e: Exception) {
-                // 如果 JSON 解析挂了，说明 AI 还是返回了纯文本，直接返回文本即可
-                rawContent
+                rawContent.replace(Regex("[a-zA-Z{}_]"), "")
             }
         } else {
             throw Exception("AI HTTP ${connection.responseCode}")
@@ -359,7 +366,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
             } else {
                 connection.inputStream
             }
-            val reader = BufferedReader(InputStreamReader(inputStream, StandardCharsets.UTF_8))
+            val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
             val sb = StringBuilder()
             var line: String?
             while (reader.readLine().also { line = it } != null) sb.append(line)
@@ -391,7 +398,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
         }
     }
 
-    // TTS 部分保持不变...
+    // TTS ...
     override fun onPause() { super.onPause(); stopTts() }
     override fun onDestroy() { if (tts != null) { tts?.stop(); tts?.shutdown() }; super.onDestroy() }
     override fun onInit(status: Int) {

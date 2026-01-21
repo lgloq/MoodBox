@@ -24,6 +24,10 @@ interface FavDao {
     @Query("SELECT * FROM fav_table WHERE content = :content LIMIT 1")
     fun findByContent(content: String): FavRecord?
 
+    // 使用 SQL 的 LIKE 语句，%标题%
+    @Query("SELECT * FROM fav_table WHERE content LIKE '%' || :title || '%' LIMIT 1")
+    fun findByTitle(title: String): FavRecord?
+
     @Delete
     fun delete(record: FavRecord)
 
