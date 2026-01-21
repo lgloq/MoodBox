@@ -12,11 +12,18 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import org.json.JSONArray
 import org.json.JSONObject
+import java.io.BufferedReader
+import java.io.InputStream
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.Random
+import java.util.zip.GZIPInputStream
 import kotlin.concurrent.thread
 
 class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
@@ -32,20 +39,23 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
     private var ttsStatus = 0
     private var currentText = "点击刷新获取内容..."
 
-    // ================== 本地兜底数据 (万一连 Hitokoto 都挂了) ==================
+    // ================== AI 配置 ==================
+    private val AI_API_KEY = "sk-iuzxavusdirvnnpualubkcsjtssrgkjfnotgttwjsyageiyo"
+    private val AI_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
+    private val AI_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+
+    // ================== 本地兜底数据 ==================
     private val localJokes = listOf(
         "今天解决不了的事，别着急，因为明天也解决不了。",
         "失败是成功之母，但成功六亲不认。",
         "我的钱包就像洋葱，每次打开都让我泪流满面。",
-        "单身狗别怕，以后单身的日子还长着呢。",
-        "虽然你长得丑，但是你想得美啊！"
+        "单身狗别怕，以后单身的日子还长着呢。"
     )
     private val localSoups = listOf(
         "生活原本沉闷，但跑起来就有风。",
         "星光不问赶路人，时光不负有心人。",
-        "热爱可抵岁月漫长。",
-        "满地都是六便士，他却抬头看见了月亮。",
-        "知足且上进，温柔而坚定。"
+        "知足且上进，温柔而坚定。",
+        "万物皆有裂痕，那是光照进来的地方。"
     )
     private val localPoetry = listOf(
         "行到水穷处，坐看云起时。",
@@ -169,51 +179,141 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
         }
     }
 
-    // ================== 网络请求 (新接口) ==================
+    // ================== 网络请求逻辑 ==================
 
     private fun loadDataFromNetwork() {
-        tvContent.text = "加载中..."
+        tvContent.text = if (moodType == "joke") "AI 正在创作段子..." else "正在连接远端星球..."
         btnFav.setImageResource(android.R.drawable.star_off)
         btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
 
+        Log.d("MoodBox", "开始请求: type=$moodType")
+
         thread {
             try {
-                // 1. 请求
-                val apiUrl = getApiUrl(moodType)
-                val url = URL(apiUrl)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connectTimeout = 3000
-                connection.readTimeout = 3000
-                // 伪装成浏览器，防止被拦截
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-
-                if (connection.responseCode == 200) {
-                    val jsonText = url.readText()
-                    // 2. 解析
-                    val content = parseContent(jsonText, moodType)
-
-                    if (content.isBlank()) throw Exception("Empty Content")
-
-                    activity?.runOnUiThread {
-                        currentText = content
-                        tvContent.text = currentText
-                        checkFavStatus()
-                    }
+                // 【防御 3】严格区分通道
+                val content = if (moodType == "joke") {
+                    requestAiJoke()
                 } else {
-                    throw Exception("HTTP ${connection.responseCode}")
+                    requestNormalApi()
                 }
-                connection.disconnect()
+
+                if (content.isBlank()) throw Exception("返回内容为空")
+
+                activity?.runOnUiThread {
+                    currentText = content
+                    tvContent.text = currentText
+                    checkFavStatus()
+                }
 
             } catch (e: Exception) {
-                // 失败就用本地数据
                 e.printStackTrace()
-                loadFromLocal()
+                val rawError = e.toString()
+                Log.e("MoodBox", "Error: $rawError")
+
+                // 简化报错显示
+                val userError = when {
+                    rawError.contains("no protocol") -> "API地址配置错误"
+                    rawError.contains("timeout") -> "连接超时"
+                    rawError.contains("SSL") -> "证书校验失败"
+                    else -> "网络异常: ${e.message}"
+                }
+
+                loadFromLocal(userError)
             }
         }
     }
 
-    private fun loadFromLocal() {
+    private fun requestAiJoke(): String {
+        val scenarios = listOf(
+            mapOf("type" to "💘 恋爱清醒拳", "theme" to "谈恋爱、相亲或单身", "style" to "冷酷的情感咨询师"),
+            mapOf("type" to "💰 搞钱扎心拳", "theme" to "工资、贫穷或消费主义", "style" to "极度现实的资本家"),
+            mapOf("type" to "🤪 弱智逻辑拳", "theme" to "日常生活中的常识", "style" to "脑回路清奇的杠精")
+        )
+        val selected = scenarios[Random().nextInt(scenarios.size)]
+        val systemPrompt = """
+            你是一名${selected["style"]}。
+            请针对【${selected["theme"]}】创作一个“神回复”段子。
+            格式：
+            甲：[问题]
+            乙：[神回复]
+            要求：字数适中，回复不要少于20个字，要有一种好笑的逻辑感。
+        """.trimIndent()
+
+        val jsonBody = JSONObject().apply {
+            put("model", AI_MODEL)
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply { put("role", "system"); put("content", systemPrompt) })
+                put(JSONObject().apply { put("role", "user"); put("content", "来一个！") })
+            })
+            put("temperature", 1.0)
+            put("max_tokens", 300)
+            put("stream", false)
+        }
+
+        val url = URL(AI_API_URL)
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.connectTimeout = 8000
+        connection.readTimeout = 8000
+        connection.setRequestProperty("Authorization", "Bearer $AI_API_KEY")
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.doOutput = true
+
+        OutputStreamWriter(connection.outputStream).use {
+            it.write(jsonBody.toString())
+            it.flush()
+        }
+
+        if (connection.responseCode == 200) {
+            val responseText = connection.inputStream.bufferedReader().readText()
+            return JSONObject(responseText).getJSONArray("choices")
+                .getJSONObject(0).getJSONObject("message").getString("content").trim()
+        } else {
+            throw Exception("AI HTTP ${connection.responseCode}")
+        }
+    }
+
+    private fun requestNormalApi(): String {
+        val apiUrl = getApiUrl(moodType)
+
+        // 【防御 2】如果在请求前发现 URL 是空的，直接拦截抛错，防止崩溃
+        if (apiUrl.isEmpty() || !apiUrl.startsWith("http")) {
+            throw Exception("无效的API地址: [$moodType] -> '$apiUrl'")
+        }
+
+        val url = URL(apiUrl)
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 10000
+        connection.readTimeout = 10000
+
+        // 伪装 + 压缩支持
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        connection.setRequestProperty("Accept", "application/json, text/plain, */*")
+        connection.setRequestProperty("Accept-Encoding", "gzip")
+
+        val responseCode = connection.responseCode
+        if (responseCode == 200) {
+            val encoding = connection.contentEncoding
+            val inputStream: InputStream = if (encoding != null && encoding.contains("gzip")) {
+                GZIPInputStream(connection.inputStream)
+            } else {
+                connection.inputStream
+            }
+
+            val reader = BufferedReader(InputStreamReader(inputStream, StandardCharsets.UTF_8))
+            val sb = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                sb.append(line)
+            }
+            return parseContent(sb.toString(), moodType)
+        } else {
+            throw Exception("HTTP $responseCode")
+        }
+    }
+
+    private fun loadFromLocal(reason: String) {
         val list = when (moodType) {
             "joke" -> localJokes
             "soup" -> localSoups
@@ -226,65 +326,69 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
             currentText = randomContent
             tvContent.text = currentText
             checkFavStatus()
+            // 提示具体错误
+            Toast.makeText(context, reason, Toast.LENGTH_LONG).show()
         }
     }
 
-    // 【关键修改 1】目前最稳的接口地址
     private fun getApiUrl(type: String): String {
         return when (type) {
-            "poetry" -> "https://v1.jinrishici.com/all.json"
-
-            // 鸡汤 -> Hitokoto (一言)，非常稳
-            "soup" -> "https://v1.hitokoto.cn/?encode=json"
-
-            // 笑话 -> 韩小韩 API (VVHan)，国内源，JSON 格式
-            "joke" -> "https://api.vvhan.com/api/text/joke?type=json"
-
+            "poetry" -> "https://v2.jinrishici.com/one.json"
+            "soup" -> "https://v1.hitokoto.cn/?c=a&encode=json"
+            // 【防御 1】万一 joke 跑到了这里，返回一个保底 URL，而不是空字符串
             else -> "https://v1.hitokoto.cn/?encode=json"
         }
     }
 
-    // 【关键修改 2】针对新接口的解析逻辑
     private fun parseContent(json: String, type: String): String {
         return try {
             val jsonObject = JSONObject(json)
             when (type) {
-                "poetry" -> jsonObject.optString("content", "")
+                "poetry" -> {
+                    val status = jsonObject.optString("status")
+                    if (status == "success") {
+                        val data = jsonObject.optJSONObject("data")
+                        val origin = data?.optJSONObject("origin")
+                        val title = origin?.optString("title", "无题")
+                        val author = origin?.optString("author", "佚名")
+                        val contentArray = origin?.optJSONArray("content")
 
-                // Hitokoto 结构: {"hitokoto": "内容", "from": "来源"}
+                        val sb = StringBuilder()
+                        if (contentArray != null) {
+                            for (i in 0 until contentArray.length()) {
+                                var line = contentArray.getString(i)
+                                // 【核心优化】
+                                // 把逗号和句号后面加上换行符，强制短句换行
+                                // 这样“春江潮水连海平，海上明月共潮生”会变成两行，不会尴尬地断开
+                                line = line.replace("，", "，\n").replace("。", "。\n")
+                                sb.append(line).append("\n") // 每段原本的结尾再加个空行，增加呼吸感
+                            }
+                        }
+                        if (sb.isEmpty()) return data?.optString("content") ?: "暂无诗词"
+
+                        // 拼接标题和作者
+                        "《$title》\n$author\n\n${sb.toString().trim()}"
+                    } else {
+                        throw Exception("Token失效或受限")
+                    }
+                }
+
                 "soup" -> {
                     val text = jsonObject.optString("hitokoto", "")
                     val from = jsonObject.optString("from", "")
-                    if (from.isNotEmpty() && from != "null") "$text —— $from" else text
+                    if (from.isNotEmpty() && from != "null") "$text\n—— $from" else text
                 }
-
-                // VVHan 结构: {"success": true, "data": {"content": "..."}}
-                "joke" -> {
-                    val data = jsonObject.optJSONObject("data")
-                    data?.optString("content") ?: ""
-                }
-                else -> ""
+                // 保底解析
+                else -> jsonObject.optString("hitokoto", "解析失败")
             }
         } catch (e: Exception) {
-            throw e
+            throw Exception("JSON解析失败: ${e.message}")
         }
     }
 
-    // ================== TTS & Lifecycle ==================
-
-    override fun onPause() {
-        super.onPause()
-        stopTts()
-    }
-
-    override fun onDestroy() {
-        if (tts != null) {
-            tts?.stop()
-            tts?.shutdown()
-        }
-        super.onDestroy()
-    }
-
+    // ... TTS 保持不变 ...
+    override fun onPause() { super.onPause(); stopTts() }
+    override fun onDestroy() { if (tts != null) { tts?.stop(); tts?.shutdown() }; super.onDestroy() }
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             var result = tts?.setLanguage(Locale.SIMPLIFIED_CHINESE)
@@ -297,28 +401,19 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
             ttsStatus = -1
         }
     }
-
     private fun setupProgressListener() {
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {
-                activity?.runOnUiThread { btnSpeak.setImageResource(android.R.drawable.ic_media_pause) }
-            }
-            override fun onDone(utteranceId: String?) {
-                activity?.runOnUiThread { btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off) }
-            }
-            override fun onError(utteranceId: String?) {
-                activity?.runOnUiThread { btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off) }
-            }
+            override fun onStart(utteranceId: String?) { activity?.runOnUiThread { btnSpeak.setImageResource(android.R.drawable.ic_media_pause) } }
+            override fun onDone(utteranceId: String?) { activity?.runOnUiThread { btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off) } }
+            override fun onError(utteranceId: String?) { activity?.runOnUiThread { btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off) } }
         })
     }
-
     private fun speakOut() {
         if (currentText.isEmpty() || currentText.contains("加载中")) return
         val params = Bundle()
         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MoodID")
         try { tts?.speak(currentText, TextToSpeech.QUEUE_FLUSH, params, "MoodID") } catch (e: Exception) {}
     }
-
     private fun stopTts() {
         try { tts?.stop() } catch (e: Exception) {}
         btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off)

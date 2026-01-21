@@ -14,7 +14,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 
 class MainActivity : AppCompatActivity() {
 
-    // 【修改】将 ViewPager 提升为成员变量，这样 Launcher 才能访问并控制它
     private lateinit var viewPager: ViewPager2
 
     // 定义一个全局的 Toast 变量，用于防堆积
@@ -29,7 +28,6 @@ class MainActivity : AppCompatActivity() {
         mToast?.show()
     }
 
-    // 【新增】注册结果回调 (替代旧的 onActivityResult)
     // 这里的逻辑是：当 FaceDetectActivity 关闭并传回数据时，自动执行这里
     private val faceDetectLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -106,7 +104,7 @@ class MainActivity : AppCompatActivity() {
                     viewPager.setCurrentItem(2, true)
                     true
                 }
-                // 【修改】如果是“测心情”，使用 launcher 启动，以便接收返回值
+                // 如果是“测心情”，使用 launcher 启动，以便接收返回值
                 R.id.nav_face_detect -> {
                     val intent = Intent(this, FaceDetectActivity::class.java)
                     // 使用 launch 替代 startActivity

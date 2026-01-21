@@ -8,7 +8,7 @@ import androidx.room.*
 data class FavRecord(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val content: String,
-    val type: String, // 【新增】记录类型：joke, quote, poetry
+    val type: String, // 记录类型：joke, quote, poetry
     val time: Long = System.currentTimeMillis()
 )
 
@@ -27,13 +27,12 @@ interface FavDao {
     @Delete
     fun delete(record: FavRecord)
 
-    // 【新增】根据时间范围查询 (start 和 end 是毫秒时间戳)
+    //根据时间范围查询 (start 和 end 是毫秒时间戳)
     @Query("SELECT * FROM fav_table WHERE time BETWEEN :start AND :end ORDER BY time DESC")
     fun getFavsByDateRange(start: Long, end: Long): List<FavRecord>
 }
 
 // 3. 数据库入口
-// 【注意看这里！】增加了 exportSchema = false
 @Database(entities = [FavRecord::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun favDao(): FavDao

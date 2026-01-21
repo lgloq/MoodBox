@@ -66,7 +66,6 @@ class FavAdapter(
         notifyDataSetChanged() // 刷新列表，以更新时间的显示状态
     }
 
-    // --- 【仿微信】智能时间格式化 ---
     private fun getSmartDate(timeInMillis: Long): String {
         val now = Calendar.getInstance()
         val record = Calendar.getInstance()
@@ -82,7 +81,6 @@ class FavAdapter(
         }
 
         // 3. 判断是否是昨天
-        // 方法：把“今天”减去1天，看看是不是和记录那天一样
         val yesterday = Calendar.getInstance()
         yesterday.add(Calendar.DAY_OF_YEAR, -1)
         val isYesterday = (yesterday.get(Calendar.YEAR) == record.get(Calendar.YEAR)) &&
@@ -94,12 +92,10 @@ class FavAdapter(
         }
 
         // 4. 判断是否是同一周 (本周)
-        // 注意：这里简单判定为“同一年的第几周相同”
         val isSameWeek = isSameYear && (now.get(Calendar.WEEK_OF_YEAR) == record.get(Calendar.WEEK_OF_YEAR))
 
         if (isSameWeek) {
             // "EEE" 在中文环境下会显示 "周几" (例如：周五)
-            // 如果想要强制中文，可以用 Locale.CHINA
             return SimpleDateFormat("EEE HH:mm", Locale.CHINA).format(record.time)
         }
 

@@ -19,10 +19,10 @@ class FavActivity : AppCompatActivity() {
     private lateinit var db: AppDatabase
     private lateinit var adapter: FavAdapter
 
-    // 【新增】用于临时存储生成的 CSV 文本内容
+    // 用于临时存储生成的 CSV 文本内容
     private var tempExportContent: String = ""
 
-    // 【新增】注册文件保存回调 (SAF框架)
+    // 注册文件保存回调 (SAF框架)
     // 当用户在系统文件管理器中点击“保存”后，系统会回调这里
     private val saveFileLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) {
@@ -52,25 +52,23 @@ class FavActivity : AppCompatActivity() {
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerViewFav)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        // 获取数据 (建议放在子线程，这里为了保持您原有的简单结构，暂时在主线程运行)
-        // 注意：如果你在 AppDatabase 里没开 allowMainThreadQueries，这里会崩。
-        // 如果崩了，请告诉我，我帮你改成子线程加载。
+        // 获取数据
         val allFavs = db.favDao().getAll().toMutableList()
 
-        // 初始化适配器，传入数据和长按删除逻辑 (保留您原有的逻辑)
+        // 初始化适配器，传入数据和长按删除逻辑
         adapter = FavAdapter(allFavs) { record, position ->
             showDeleteDialog(record, position)
         }
         recyclerView.adapter = adapter
 
-        // 2. 【新增】绑定导出按钮事件
+        // 绑定导出按钮事件
         val fabExport = findViewById<FloatingActionButton>(R.id.fabExport)
         fabExport.setOnClickListener {
             showDateRangePicker()
         }
     }
 
-    // 【原有】删除确认弹窗
+    // 删除确认弹窗
     private fun showDeleteDialog(record: FavRecord, position: Int) {
         AlertDialog.Builder(this)
             .setTitle("删除收藏")
@@ -89,7 +87,7 @@ class FavActivity : AppCompatActivity() {
             .show()
     }
 
-    // 【新增】显示日期范围选择器
+    // 显示日期范围选择器
     private fun showDateRangePicker() {
         val datePicker = MaterialDatePicker.Builder.dateRangePicker()
             .setTitleText("选择导出日期范围")
@@ -107,8 +105,7 @@ class FavActivity : AppCompatActivity() {
             val endDate = selection.second
 
             if (startDate != null && endDate != null) {
-                // 细节：DatePicker 返回的是 UTC 0点
-                // 为了包含结束当天的数据，把结束时间设为当天的 23:59:59 (即 +24小时 -1毫秒)
+                //DatePicker 返回的是 UTC 0点
                 val adjustedEndDate = endDate + 86400000L - 1
                 prepareExportData(startDate, adjustedEndDate)
             }
@@ -116,7 +113,7 @@ class FavActivity : AppCompatActivity() {
         datePicker.show(supportFragmentManager, "EXPORT_DATE")
     }
 
-    // 【新增】查询数据并生成 CSV 内容
+    // 查询数据并生成 CSV 内容
     private fun prepareExportData(start: Long, end: Long) {
         thread {
             // 1. 查库

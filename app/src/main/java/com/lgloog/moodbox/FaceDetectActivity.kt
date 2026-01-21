@@ -33,7 +33,7 @@ class FaceDetectActivity : AppCompatActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
 
-    // 【核心修复 1】引入 Session ID (会话令牌)
+    // 引入 Session ID (会话令牌)
     // 每次启动/切换相机，ID +1。只有持有最新 ID 的结果才会被处理。
     private var currentSessionId = 0L
 
@@ -92,7 +92,7 @@ class FaceDetectActivity : AppCompatActivity() {
     }
 
     private fun startCamera() {
-        // 【核心】捕获当前启动时的 Session ID
+        // 捕获当前启动时的 Session ID
         // 这个 captureSessionId 会被“闭包”进下面的 Analyzer 里
         // 也就是说，这个相机实例产生的所有结果，都会永远带着这个 ID
         val captureSessionId = currentSessionId
@@ -137,14 +137,11 @@ class FaceDetectActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    // 处理结果 (注意这里加了第二个参数：resultSessionId)
+    // 处理结果
     private fun handleMoodResult(moodType: String, resultSessionId: Long) {
         // 必须在主线程进行 ID 校验，保证线程安全
         runOnUiThread {
-            // ================== 【终极防线】 ==================
-
-            // 1. 验票：如果这个结果的 ID 不等于当前的 ID (说明是前朝遗老)
-            // 直接扔掉，不做任何处理！
+            // 1. 验票：如果这个结果的 ID 不等于当前的 ID, 直接扔掉，不做任何处理！
             if (resultSessionId != currentSessionId) {
                 Log.d(TAG, "拦截到一个过期结果: $resultSessionId (当前: $currentSessionId)")
                 return@runOnUiThread
@@ -174,7 +171,6 @@ class FaceDetectActivity : AppCompatActivity() {
         }
     }
 
-    // FaceAnalyzer 保持不变，它只负责无脑产出结果
     private class FaceAnalyzer(private val onMoodDetected: (String) -> Unit) : ImageAnalysis.Analyzer {
         private val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)

@@ -72,7 +72,7 @@ class ReportActivity : AppCompatActivity() {
             Color.LTGRAY
         )
 
-        // 【关键】获取适配深色模式的文字颜色
+        // 获取适配深色模式的文字颜色
         val textColor = getThemeColor(R.color.chart_text)
         val cardColor = getThemeColor(R.color.chart_card_bg)
 
@@ -84,9 +84,9 @@ class ReportActivity : AppCompatActivity() {
         chart.centerText = "收藏总数\n${list.size}"
         chart.setCenterTextSize(16f)
 
-        // 【关键】中间的洞颜色必须和卡片背景一致，否则很难看
+        // 中间的洞颜色必须和卡片背景一致，否则很难看
         chart.setHoleColor(cardColor)
-        // 【关键】中间文字的颜色随系统变
+        // 中间文字的颜色随系统变
         chart.setCenterTextColor(textColor)
 
         // 设置图例颜色
@@ -122,7 +122,7 @@ class ReportActivity : AppCompatActivity() {
             calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
 
-        // 【关键】获取当前主题颜色
+        // 获取当前主题颜色
         val textColor = getThemeColor(R.color.chart_text)
 
         val dataSet = BarDataSet(entries, "每日收藏数")
@@ -153,7 +153,7 @@ class ReportActivity : AppCompatActivity() {
         chart.invalidate()
     }
 
-    // --- 【工具方法】自动获取当前资源里的颜色值 ---
+    // --- 自动获取当前资源里的颜色值 ---
     private fun getThemeColor(colorResId: Int): Int {
         return ContextCompat.getColor(this, colorResId)
     }
@@ -162,7 +162,7 @@ class ReportActivity : AppCompatActivity() {
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        // 【关键】截图的背景色也要根据当前主题来，不能写死 White
+        // 截图的背景色也要根据当前主题来，不写死 White
         val bgColor = getThemeColor(R.color.chart_card_bg)
         canvas.drawColor(bgColor)
 
