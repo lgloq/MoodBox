@@ -15,4 +15,6 @@
     <color name="icon_tint">#6200EE</color>
     <color name="chart_text">#333333</color>
     <color name="chart_card_bg">#FFFFFF</color>
+
+    <color name="star_active">#FFC107</color>
 </resources>

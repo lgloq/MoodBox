@@ -25,6 +25,7 @@ import java.util.Random
 import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
 import kotlin.concurrent.thread
+import androidx.core.content.ContextCompat
 
 class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
 
@@ -186,12 +187,15 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
     }
 
     private fun updateFavIcon(isFav: Boolean) {
+        val context = context ?: return
         if (isFav) {
             btnFav.setImageResource(android.R.drawable.star_on)
-            btnFav.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
+            // 激活状态：使用新加的 star_active (黄色)
+            btnFav.setColorFilter(ContextCompat.getColor(context, R.color.star_active))
         } else {
             btnFav.setImageResource(android.R.drawable.star_off)
-            btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
+            // 未激活状态：使用 text_secondary (自适应灰)
+            btnFav.setColorFilter(ContextCompat.getColor(context, R.color.text_secondary))
         }
     }
 

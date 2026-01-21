@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F6FA"
+    android:background="@color/page_bg"
     android:padding="20dp">
 
     <androidx.cardview.widget.CardView
@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginVertical="30dp"
-        app:cardBackgroundColor="@color/white"
+        app:cardBackgroundColor="@color/card_bg"
         app:cardCornerRadius="24dp"
         app:cardElevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -28,7 +28,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Mood Box"
-                android:textColor="#999999"
+                android:textColor="@color/text_secondary"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.05"
@@ -43,8 +43,8 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:scaleType="fitCenter"
-                android:src="@drawable/ic_insert_chart"
-                app:tint="@color/purple_500"
+                android:src="@drawable/ic_refresh"
+                app:tint="@color/icon_tint"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -74,7 +74,7 @@
                         android:gravity="center"
                         android:lineSpacingMultiplier="1.5"
                         android:text="点击刷新获取内容..."
-                        android:textColor="#333333"
+                        android:textColor="@color/text_primary"
                         android:textSize="22sp"
                         android:textStyle="bold"
                         tools:text="行到水穷处，坐看云起时。" />
@@ -96,7 +96,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:scaleType="centerInside"
                     android:src="@android:drawable/ic_lock_silent_mode_off"
-                    app:tint="#999999" />
+                    app:tint="@color/text_secondary" />
 
                 <Space android:layout_width="40dp" android:layout_height="wrap_content" />
 
@@ -107,7 +107,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:scaleType="centerInside"
                     android:src="@android:drawable/star_off"
-                    app:tint="#999999" />
+                    app:tint="@color/text_secondary" />
 
                 <Space android:layout_width="40dp" android:layout_height="wrap_content" />
 
@@ -118,7 +118,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:scaleType="centerInside"
                     android:src="@android:drawable/ic_menu_share"
-                    app:tint="#999999" />
+                    app:tint="@color/text_secondary" />
             </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
