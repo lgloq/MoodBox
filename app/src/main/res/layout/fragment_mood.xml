@@ -1,78 +1,126 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp">
+    android:background="#F5F6FA"
+    android:padding="20dp">
 
     <androidx.cardview.widget.CardView
+        android:id="@+id/cardContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="center"
+        android:layout_height="0dp"
+        android:layout_marginVertical="30dp"
+        app:cardBackgroundColor="@color/white"
         app:cardCornerRadius="24dp"
-        app:cardElevation="0dp"
-        app:cardBackgroundColor="@color/card_bg"> <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="32dp">
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Mood Box"
-            android:textSize="14sp"
-            android:textColor="@color/text_secondary"
-            android:layout_centerHorizontal="true"/>
-        <ImageButton
-            android:id="@+id/btnRefresh"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_alignParentEnd="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_popup_sync"
-            app:tint="@color/icon_tint"/>
-        <TextView
-            android:id="@+id/tvContent"
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:gravity="center"
-            android:text="加载中..."
-            android:textColor="@color/text_primary"
-            android:textSize="24sp"
-            android:lineSpacingExtra="10dp"
-            android:fontFamily="serif"
-            android:textStyle="bold"/>
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:gravity="center"
-            android:orientation="horizontal">
+            android:layout_height="match_parent"
+            android:padding="24dp">
+
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mood Box"
+                android:textColor="#999999"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.05"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="@id/btnRefresh"/>
 
             <ImageButton
-                android:id="@+id/btnSpeak"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:id="@+id/btnRefresh"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_lock_silent_mode_off"
-                app:tint="@color/text_secondary"/> <ImageButton
-            android:id="@+id/btnFav"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginHorizontal="32dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/star_off"
-            app:tint="#FFC107"/> <ImageButton
-            android:id="@+id/btnShare"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_share"
-            app:tint="@color/text_secondary"/>
-        </LinearLayout>
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_insert_chart"
+                app:tint="@color/purple_500"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-    </RelativeLayout>
+            <ScrollView
+                android:id="@+id/scrollView"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="24dp"
+                android:fillViewport="true"
+                android:scrollbars="none"
+                app:layout_constraintBottom_toTopOf="@id/bottomBar"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/btnRefresh">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvContent"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:lineSpacingMultiplier="1.5"
+                        android:text="点击刷新获取内容..."
+                        android:textColor="#333333"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        tools:text="行到水穷处，坐看云起时。" />
+                </LinearLayout>
+            </ScrollView>
+
+            <LinearLayout
+                android:id="@+id/bottomBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageButton
+                    android:id="@+id/btnSpeak"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="centerInside"
+                    android:src="@android:drawable/ic_lock_silent_mode_off"
+                    app:tint="#999999" />
+
+                <Space android:layout_width="40dp" android:layout_height="wrap_content" />
+
+                <ImageButton
+                    android:id="@+id/btnFav"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="centerInside"
+                    android:src="@android:drawable/star_off"
+                    app:tint="#999999" />
+
+                <Space android:layout_width="40dp" android:layout_height="wrap_content" />
+
+                <ImageButton
+                    android:id="@+id/btnShare"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:scaleType="centerInside"
+                    android:src="@android:drawable/ic_menu_share"
+                    app:tint="#999999" />
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
-</FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

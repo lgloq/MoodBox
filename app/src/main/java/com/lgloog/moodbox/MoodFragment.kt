@@ -42,7 +42,10 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
     // ================== AI 配置 ==================
     private val AI_API_KEY = "sk-iuzxavusdirvnnpualubkcsjtssrgkjfnotgttwjsyageiyo"
     private val AI_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-    private val AI_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+
+    // 模型定义
+    private val AI_MODEL_QWEN = "Qwen/Qwen2.5-7B-Instruct" // 写段子用
+    private val AI_MODEL_GLM = "THUDM/glm-4-9b-chat"      // 写古诗用 (适合JSON指令)
 
     // ================== 本地兜底数据 ==================
     private val localJokes = listOf(
@@ -58,10 +61,9 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
         "万物皆有裂痕，那是光照进来的地方。"
     )
     private val localPoetry = listOf(
-        "行到水穷处，坐看云起时。",
-        "欲把西湖比西子，淡妆浓抹总相宜。",
-        "采菊东篱下，悠然见南山。",
-        "长风破浪会有时，直挂云帆济沧海。"
+        "《行路难》\n[唐] 李白\n\n长风破浪会有时，\n直挂云帆济沧海。",
+        "《定风波》\n[宋] 苏轼\n\n竹杖芒鞋轻胜马，谁怕？\n一蓑烟雨任平生。",
+        "《望岳》\n[唐] 杜甫\n\n会当凌绝顶，\n一览众山小。"
     )
 
     companion object {
@@ -134,6 +136,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
                     activity?.runOnUiThread {
                         Toast.makeText(requireContext(), "已取消收藏", Toast.LENGTH_SHORT).show()
                         btnFav.setImageResource(android.R.drawable.star_off)
+                        btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
                     }
                 } else {
                     val newRecord = FavRecord(
@@ -145,6 +148,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
                     activity?.runOnUiThread {
                         Toast.makeText(requireContext(), "已加入收藏", Toast.LENGTH_SHORT).show()
                         btnFav.setImageResource(android.R.drawable.star_on)
+                        btnFav.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
                     }
                 }
             }
@@ -173,8 +177,13 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
             val db = AppDatabase.getDatabase(requireContext())
             val existing = db.favDao().findByContent(currentText)
             activity?.runOnUiThread {
-                if (existing != null) btnFav.setImageResource(android.R.drawable.star_on)
-                else btnFav.setImageResource(android.R.drawable.star_off)
+                if (existing != null) {
+                    btnFav.setImageResource(android.R.drawable.star_on)
+                    btnFav.setColorFilter(android.graphics.Color.parseColor("#FFC107"))
+                } else {
+                    btnFav.setImageResource(android.R.drawable.star_off)
+                    btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
+                }
             }
         }
     }
@@ -182,17 +191,21 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
     // ================== 网络请求逻辑 ==================
 
     private fun loadDataFromNetwork() {
-        tvContent.text = if (moodType == "joke") "AI 正在创作段子..." else "正在连接远端星球..."
-        btnFav.setImageResource(android.R.drawable.star_off)
-        btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
+        val loadingText = when(moodType) {
+            "joke" -> "Qwen 正在创作段子..."
+            "poetry" -> "GLM 正在寻觅古诗..."
+            else -> "正在连接..."
+        }
+        tvContent.text = loadingText
 
-        Log.d("MoodBox", "开始请求: type=$moodType")
+        btnFav.setImageResource(android.R.drawable.star_off)
+        btnFav.setColorFilter(android.graphics.Color.parseColor("#999999"))
+        btnSpeak.setImageResource(android.R.drawable.ic_lock_silent_mode_off)
 
         thread {
             try {
-                // 【防御 3】严格区分通道
-                val content = if (moodType == "joke") {
-                    requestAiJoke()
+                val content = if (moodType == "joke" || moodType == "poetry") {
+                    requestAiContent(moodType)
                 } else {
                     requestNormalApi()
                 }
@@ -200,6 +213,13 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
                 if (content.isBlank()) throw Exception("返回内容为空")
 
                 activity?.runOnUiThread {
+                    // 字体控制: 古诗略小(18)以防换行，其他略大(22)
+                    if (moodType == "poetry") {
+                        tvContent.textSize = 18f
+                    } else {
+                        tvContent.textSize = 22f
+                    }
+
                     currentText = content
                     tvContent.text = currentText
                     checkFavStatus()
@@ -207,54 +227,65 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                val rawError = e.toString()
-                Log.e("MoodBox", "Error: $rawError")
-
-                // 简化报错显示
-                val userError = when {
-                    rawError.contains("no protocol") -> "API地址配置错误"
-                    rawError.contains("timeout") -> "连接超时"
-                    rawError.contains("SSL") -> "证书校验失败"
-                    else -> "网络异常: ${e.message}"
-                }
-
-                loadFromLocal(userError)
+                loadFromLocal("网络开小差了: ${e.message}")
             }
         }
     }
 
-    private fun requestAiJoke(): String {
-        val scenarios = listOf(
-            mapOf("type" to "💘 恋爱清醒拳", "theme" to "谈恋爱、相亲或单身", "style" to "冷酷的情感咨询师"),
-            mapOf("type" to "💰 搞钱扎心拳", "theme" to "工资、贫穷或消费主义", "style" to "极度现实的资本家"),
-            mapOf("type" to "🤪 弱智逻辑拳", "theme" to "日常生活中的常识", "style" to "脑回路清奇的杠精")
-        )
-        val selected = scenarios[Random().nextInt(scenarios.size)]
-        val systemPrompt = """
-            你是一名${selected["style"]}。
-            请针对【${selected["theme"]}】创作一个“神回复”段子。
-            格式：
-            甲：[问题]
-            乙：[神回复]
-            要求：字数适中，回复不要少于20个字，要有一种好笑的逻辑感。
-        """.trimIndent()
+    // 【AI 请求核心方法】 - 强制 JSON 模式
+    private fun requestAiContent(type: String): String {
+        // 1. 构造 System Prompt (强制 JSON)
+        val systemPrompt = if (type == "poetry") {
+            """
+            你是一个古诗词API。请返回纯JSON格式数据，不要包含任何Markdown标记。
+            随机推荐一首中国古代经典诗词（唐诗或宋词），避开《静夜思》等基础诗词。
+            JSON格式要求：
+            {
+              "title": "标题",
+              "author": "[朝代] 作者",
+              "lines": [
+                "第一句，第二句。", 
+                "第三句，第四句。"
+              ]
+            }
+            注意：
+            1. lines数组中，每一项必须是完整的一联（包含逗号和句号），绝对不要把一句拆成两行。
+            2. 杜绝出现代码、英文或乱码。
+            """.trimIndent()
+        } else {
+            // 段子也用 JSON 保持稳定
+            """
+            你是一个幽默大师。请返回纯JSON格式数据。
+            主题：生活/恋爱/搞钱。
+            JSON格式要求：
+            {
+              "qa_list": [
+                "甲：[天真的话]",
+                "乙：[神回复]"
+              ]
+            }
+            """.trimIndent()
+        }
+
+        val targetModel = if (type == "poetry") AI_MODEL_GLM else AI_MODEL_QWEN
 
         val jsonBody = JSONObject().apply {
-            put("model", AI_MODEL)
+            put("model", targetModel)
             put("messages", JSONArray().apply {
                 put(JSONObject().apply { put("role", "system"); put("content", systemPrompt) })
-                put(JSONObject().apply { put("role", "user"); put("content", "来一个！") })
+                put(JSONObject().apply { put("role", "user"); put("content", "开始") })
             })
-            put("temperature", 1.0)
-            put("max_tokens", 300)
+            // 【关键】降低温度，防止出现 setVisible 这种幻觉
+            put("temperature", 0.6)
+            put("max_tokens", 450)
             put("stream", false)
         }
 
         val url = URL(AI_API_URL)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
-        connection.connectTimeout = 8000
-        connection.readTimeout = 8000
+        connection.connectTimeout = 12000
+        connection.readTimeout = 12000
         connection.setRequestProperty("Authorization", "Bearer $AI_API_KEY")
         connection.setRequestProperty("Content-Type", "application/json")
         connection.doOutput = true
@@ -266,50 +297,79 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
 
         if (connection.responseCode == 200) {
             val responseText = connection.inputStream.bufferedReader().readText()
-            return JSONObject(responseText).getJSONArray("choices")
+            val rawContent = JSONObject(responseText).getJSONArray("choices")
                 .getJSONObject(0).getJSONObject("message").getString("content").trim()
+
+            // 【清洗数据】去掉可能存在的 ```json ``` 包裹
+            val jsonStr = rawContent.replace("```json", "").replace("```", "").trim()
+
+            // 【解析 JSON 并手动排版】
+            return try {
+                val obj = JSONObject(jsonStr)
+                if (type == "poetry") {
+                    val title = obj.optString("title", "无题")
+                    val author = obj.optString("author", "佚名")
+                    val lines = obj.optJSONArray("lines")
+                    val sb = StringBuilder()
+                    sb.append("《$title》\n$author\n\n")
+
+                    if (lines != null) {
+                        for (i in 0 until lines.length()) {
+                            sb.append(lines.getString(i)).append("\n")
+                        }
+                    }
+                    sb.toString().trim()
+                } else {
+                    // 段子解析
+                    val list = obj.optJSONArray("qa_list")
+                    val sb = StringBuilder()
+                    if (list != null) {
+                        for (i in 0 until list.length()) {
+                            sb.append(list.getString(i)).append("\n")
+                        }
+                    } else {
+                        // 兼容 fallback
+                        obj.toString()
+                    }
+                    sb.toString().trim()
+                }
+            } catch (e: Exception) {
+                // 如果 JSON 解析挂了，说明 AI 还是返回了纯文本，直接返回文本即可
+                rawContent
+            }
         } else {
             throw Exception("AI HTTP ${connection.responseCode}")
         }
     }
 
     private fun requestNormalApi(): String {
-        val apiUrl = getApiUrl(moodType)
-
-        // 【防御 2】如果在请求前发现 URL 是空的，直接拦截抛错，防止崩溃
-        if (apiUrl.isEmpty() || !apiUrl.startsWith("http")) {
-            throw Exception("无效的API地址: [$moodType] -> '$apiUrl'")
-        }
-
+        val apiUrl = "https://v1.hitokoto.cn/?c=a&encode=json"
         val url = URL(apiUrl)
         val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
-        connection.connectTimeout = 10000
-        connection.readTimeout = 10000
-
-        // 伪装 + 压缩支持
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        connection.setRequestProperty("Accept", "application/json, text/plain, */*")
+        connection.connectTimeout = 5000
+        connection.readTimeout = 5000
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0")
         connection.setRequestProperty("Accept-Encoding", "gzip")
 
-        val responseCode = connection.responseCode
-        if (responseCode == 200) {
+        if (connection.responseCode == 200) {
             val encoding = connection.contentEncoding
             val inputStream: InputStream = if (encoding != null && encoding.contains("gzip")) {
                 GZIPInputStream(connection.inputStream)
             } else {
                 connection.inputStream
             }
-
             val reader = BufferedReader(InputStreamReader(inputStream, StandardCharsets.UTF_8))
             val sb = StringBuilder()
             var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                sb.append(line)
-            }
-            return parseContent(sb.toString(), moodType)
+            while (reader.readLine().also { line = it } != null) sb.append(line)
+
+            val jsonObject = JSONObject(sb.toString())
+            val text = jsonObject.optString("hitokoto", "")
+            val from = jsonObject.optString("from", "")
+            return if (from.isNotEmpty()) "$text\n—— $from" else text
         } else {
-            throw Exception("HTTP $responseCode")
+            throw Exception("HTTP ${connection.responseCode}")
         }
     }
 
@@ -326,67 +386,12 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
             currentText = randomContent
             tvContent.text = currentText
             checkFavStatus()
-            // 提示具体错误
-            Toast.makeText(context, reason, Toast.LENGTH_LONG).show()
+            if (moodType == "poetry") tvContent.textSize = 18f else tvContent.textSize = 22f
+            Toast.makeText(context, reason, Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun getApiUrl(type: String): String {
-        return when (type) {
-            "poetry" -> "https://v2.jinrishici.com/one.json"
-            "soup" -> "https://v1.hitokoto.cn/?c=a&encode=json"
-            // 【防御 1】万一 joke 跑到了这里，返回一个保底 URL，而不是空字符串
-            else -> "https://v1.hitokoto.cn/?encode=json"
-        }
-    }
-
-    private fun parseContent(json: String, type: String): String {
-        return try {
-            val jsonObject = JSONObject(json)
-            when (type) {
-                "poetry" -> {
-                    val status = jsonObject.optString("status")
-                    if (status == "success") {
-                        val data = jsonObject.optJSONObject("data")
-                        val origin = data?.optJSONObject("origin")
-                        val title = origin?.optString("title", "无题")
-                        val author = origin?.optString("author", "佚名")
-                        val contentArray = origin?.optJSONArray("content")
-
-                        val sb = StringBuilder()
-                        if (contentArray != null) {
-                            for (i in 0 until contentArray.length()) {
-                                var line = contentArray.getString(i)
-                                // 【核心优化】
-                                // 把逗号和句号后面加上换行符，强制短句换行
-                                // 这样“春江潮水连海平，海上明月共潮生”会变成两行，不会尴尬地断开
-                                line = line.replace("，", "，\n").replace("。", "。\n")
-                                sb.append(line).append("\n") // 每段原本的结尾再加个空行，增加呼吸感
-                            }
-                        }
-                        if (sb.isEmpty()) return data?.optString("content") ?: "暂无诗词"
-
-                        // 拼接标题和作者
-                        "《$title》\n$author\n\n${sb.toString().trim()}"
-                    } else {
-                        throw Exception("Token失效或受限")
-                    }
-                }
-
-                "soup" -> {
-                    val text = jsonObject.optString("hitokoto", "")
-                    val from = jsonObject.optString("from", "")
-                    if (from.isNotEmpty() && from != "null") "$text\n—— $from" else text
-                }
-                // 保底解析
-                else -> jsonObject.optString("hitokoto", "解析失败")
-            }
-        } catch (e: Exception) {
-            throw Exception("JSON解析失败: ${e.message}")
-        }
-    }
-
-    // ... TTS 保持不变 ...
+    // TTS 部分保持不变...
     override fun onPause() { super.onPause(); stopTts() }
     override fun onDestroy() { if (tts != null) { tts?.stop(); tts?.shutdown() }; super.onDestroy() }
     override fun onInit(status: Int) {
@@ -409,7 +414,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
         })
     }
     private fun speakOut() {
-        if (currentText.isEmpty() || currentText.contains("加载中")) return
+        if (currentText.isEmpty() || currentText.contains("AI") || currentText.contains("正在")) return
         val params = Bundle()
         params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "MoodID")
         try { tts?.speak(currentText, TextToSpeech.QUEUE_FLUSH, params, "MoodID") } catch (e: Exception) {}
