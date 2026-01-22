@@ -237,7 +237,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
     private fun requestAiContent(type: String): String {
         // 1. 构造 System Prompt (加入随机性)
         val systemPrompt = if (type == "poetry") {
-            // 【核心修改】定义一个丰富的诗人库，强制 AI 每次换人
+            // 定义一个丰富的诗人库，强制 AI 每次换人
             val poets = listOf(
                 "李白", "杜甫", "苏轼", "王维", "白居易", "李清照", "辛弃疾", "纳兰性德",
                 "李商隐", "杜牧", "陆游", "孟浩然", "刘禹锡", "柳宗元", "欧阳修", "陶渊明",
