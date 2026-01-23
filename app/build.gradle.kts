@@ -1,3 +1,13 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+//加载 local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -16,6 +26,15 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val key = localProperties.getProperty("AI_API_KEY") ?: ""
+        buildConfigField("String", "AI_API_KEY", "\"$key\"")
+    }
+
+    buildFeatures {
+        viewBinding = true
+        //开启 buildConfig 功能 (Android Gradle Plugin 8.0+ 默认关闭，需手动开启)
+        buildConfig = true
     }
 
     buildTypes {

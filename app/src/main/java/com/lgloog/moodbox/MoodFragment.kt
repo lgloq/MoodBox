@@ -26,6 +26,7 @@ import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
 import kotlin.concurrent.thread
 import androidx.core.content.ContextCompat
+import com.lgloog.moodbox.BuildConfig
 
 class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
 
@@ -42,7 +43,7 @@ class MoodFragment : Fragment(), TextToSpeech.OnInitListener {
     private var currentTitle: String = ""
 
     // ================== AI 配置 ==================
-    private val AI_API_KEY = "sk-iuzxavusdirvnnpualubkcsjtssrgkjfnotgttwjsyageiyo"
+    private val AI_API_KEY = BuildConfig.AI_API_KEY
     private val AI_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
 
     private val AI_MODEL_QWEN = "Qwen/Qwen2.5-7B-Instruct"
